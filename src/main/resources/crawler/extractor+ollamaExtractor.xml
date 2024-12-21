@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE components PUBLIC "-//DBFLUTE//DTD LastaDi 1.0//EN"
+	"http://dbflute.org/meta/lastadi10.dtd">
+<components namespace="fessCrawler">
+	<include path="crawler/container.xml" />
+	<component name="ollamaExtractor"
+		class="org.codelibs.fess.crawler.extractor.OllamaExtractor">
+		<postConstruct name="register">
+			<arg>[
+				"image/jpeg",
+				"image/png",
+				"text/html",
+				"text/plain",
+				"text/xml"
+				]
+			</arg>
+		</postConstruct>
+	</component>
+</components>
