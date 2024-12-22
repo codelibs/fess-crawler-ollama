@@ -11,9 +11,7 @@ Add the following properties to the system.properties file:
 
 ```
 ollama.endpoint=http://your-ollama-endpoint
-ollama.model.text_plain=default-text-model
-ollama.prompt.text_plain=Summarize the following text: [[INPUT_TEXT]]
-ollama.model.image_jpg=image-classification-model
-ollama.prompt.image_jpg=Describe this image.
+ollama.extractor.model.image_jpg=image-classification-model
+ollama.extractor.prompt.image_jpg=Describe this image.
 ```
 

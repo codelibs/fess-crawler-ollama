@@ -8,10 +8,7 @@
 		<postConstruct name="register">
 			<arg>[
 				"image/jpeg",
-				"image/png",
-				"text/html",
-				"text/plain",
-				"text/xml"
+				"image/png"
 				]
 			</arg>
 		</postConstruct>

@@ -46,9 +46,9 @@ public class OllamaExtractor extends AbstractExtractor {
 
     protected static final String OLLAMA_ENDPOINT = "ollama.endpoint";
 
-    protected static final String OLLAMA_PROMPT_PREFIX = "ollama.prompt.";
+    protected static final String OLLAMA_PROMPT_PREFIX = "ollama.extractor.prompt.";
 
-    protected static final String OLLAMA_MODEL_PREFIX = "ollama.model.";
+    protected static final String OLLAMA_MODEL_PREFIX = "ollama.extractor.model.";
 
     protected static final String TEXT_PLACEHOLDER = "[[INPUT_TEXT]]";
 
