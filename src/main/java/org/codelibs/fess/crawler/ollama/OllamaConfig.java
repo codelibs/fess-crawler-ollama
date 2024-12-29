@@ -15,5 +15,8 @@
  */
 package org.codelibs.fess.crawler.ollama;
 
-public record OllamaConfig(String model, String prompt) {
+/**
+ * Ollama configuration.
+ */
+public record OllamaConfig(String model, String prompt,String outputField) {
 }

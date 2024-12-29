@@ -13,28 +13,25 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.codelibs.fess.crawler.extractor;
+package org.codelibs.fess.ingest;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlResponse;
 import org.codelibs.fess.OllamaConstants;
-import org.codelibs.fess.crawler.entity.ExtractData;
 import org.codelibs.fess.mylasta.direction.FessConfig;
 import org.codelibs.fess.util.ComponentUtil;
 import org.dbflute.utflute.core.PlainTestCase;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.ollama.OllamaContainer;
 
-public class OllamaExtractorTest extends PlainTestCase {
+public class OllamaIngesterTest extends PlainTestCase {
 
-    static final Logger logger = Logger.getLogger(OllamaExtractorTest.class.getName());
+    static final Logger logger = Logger.getLogger(OllamaIngesterTest.class.getName());
 
     static final String imageTag = "ollama/ollama:0.5.4";
 
@@ -68,7 +65,7 @@ public class OllamaExtractorTest extends PlainTestCase {
         super.tearDown();
     }
 
-    public void test_getText() throws Exception {
+    public void test_process() throws Exception {
         ComponentUtil.setFessConfig(new FessConfig.SimpleImpl() {
 
             @Override
@@ -76,30 +73,62 @@ public class OllamaExtractorTest extends PlainTestCase {
                 if (OllamaConstants.OLLAMA_ENDPOINT.equals(key)) {
                     return ollama.getEndpoint();
                 }
-                if (key.equals(OllamaConstants.OLLAMA_EXTRACTOR_MODEL_PREFIX + "text_plain")) {
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_MODEL_PREFIX + "text_plain")) {
                     return modelName;
                 }
-                if (key.equals(OllamaConstants.OLLAMA_EXTRACTOR_PROMPT_PREFIX + "text_plain")) {
-                    return "What is [[INPUT_TEXT]]?";
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_PROMPT_PREFIX + "text_plain")) {
+                    return "What is [[content]]?";
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_FIELD_PREFIX + "text_plain")) {
+                    return "ollama_content";
                 }
                 return null;
             }
+
+            @Override
+            public String getIndexFieldMimetype() {
+                return "mimetype";
+            }
         });
 
-        final OllamaExtractor extractor = new OllamaExtractor() {
+        final OllamaIngester ingester = new OllamaIngester() {
             @Override
-            protected ExtractorFactory getExtractorFactory() {
-                return new ExtractorFactory();
+            protected String[] getMimeTypeKeysFromSystemProperties() {
+                return new String[] { "text_plain" };
+            }
+
+            @Override
+            protected IngestFactory getIngestFactory() {
+                return new IngestFactory();
             }
         };
-        extractor.register(List.of("text/plain"));
+        ingester.register();
 
-        final Map<String, String> params = new HashMap<>();
-        params.put(ExtractData.RESOURCE_NAME_KEY, "test.txt");
-        params.put(ExtractData.CONTENT_TYPE, "text/plain");
-        final ExtractData extractData = extractor.getText(new ByteArrayInputStream("Apple".getBytes()), params);
-        logger.info("output: " + extractData.getContent());
-        assertNotNull(extractData);
+        {
+            final Map<String, Object> map = new HashMap<>();
+            map.put("mimetype", "text/plain");
+            map.put("content", "Apple");
+            final Map<String, Object> output = ingester.process(map);
+            assertTrue(output.get("ollama_content").toString().contains("Apple"));
+        }
+        {
+            final Map<String, Object> map = new HashMap<>();
+            map.put("mimetype", "text/html");
+            map.put("content", "Apple");
+            final Map<String, Object> output = ingester.process(map);
+            assertFalse(output.containsKey("ollama_content"));
+        }
+
+    }
+
+    public void test_replacePlaceholders() {
+        final OllamaIngester ingester = new OllamaIngester();
+
+        final Map<String, Object> map = new HashMap<>();
+        map.put("v1", "111");
+        map.put("v2", "222");
+        map.put("v3", "333");
+        assertEquals("111 aaa 222 bbb ", ingester.replacePlaceholders("[[v1]] aaa [[v2]] bbb [[v4]]", map));
     }
 
 }

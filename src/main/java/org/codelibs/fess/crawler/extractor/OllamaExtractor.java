@@ -23,12 +23,15 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.commons.text.StringEscapeUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.codelibs.core.io.InputStreamUtil;
 import org.codelibs.core.lang.StringUtil;
 import org.codelibs.core.misc.Pair;
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlResponse;
 import org.codelibs.fess.Constants;
+import org.codelibs.fess.OllamaConstants;
 import org.codelibs.fess.crawler.entity.ExtractData;
 import org.codelibs.fess.crawler.exception.ExtractException;
 import org.codelibs.fess.crawler.exception.UnsupportedExtractException;
@@ -37,31 +40,24 @@ import org.codelibs.fess.crawler.ollama.OllamaConfig;
 import org.codelibs.fess.mylasta.direction.FessConfig;
 import org.codelibs.fess.util.ComponentUtil;
 import org.codelibs.opensearch.runner.net.OpenSearchCurl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/**
+ * Extract text from images using Ollama API.
+ */
 public class OllamaExtractor extends AbstractExtractor {
 
-    private static final Logger logger = LoggerFactory.getLogger(OllamaExtractor.class);
-
-    protected static final String OLLAMA_ENDPOINT = "ollama.endpoint";
-
-    protected static final String OLLAMA_PROMPT_PREFIX = "ollama.extractor.prompt.";
-
-    protected static final String OLLAMA_MODEL_PREFIX = "ollama.extractor.model.";
-
-    protected static final String TEXT_PLACEHOLDER = "[[INPUT_TEXT]]";
-
-    protected Map<String, OllamaConfig> modelConfigMap = Collections.emptyMap();
+    private static final Logger logger = LogManager.getLogger(OllamaExtractor.class);
 
     protected String endpoint;
+
+    protected Map<String, OllamaConfig> modelConfigMap = Collections.emptyMap();
 
     @Override
     public void register(final List<String> keyList) {
         super.register(keyList);
 
         final FessConfig fessConfig = ComponentUtil.getFessConfig();
-        endpoint = fessConfig.getSystemProperty(OLLAMA_ENDPOINT);
+        endpoint = fessConfig.getSystemProperty(OllamaConstants.OLLAMA_ENDPOINT);
         if (StringUtil.isBlank(endpoint)) {
             if (logger.isDebugEnabled()) {
                 logger.info("No Ollama endpoint is configured. Skipping registration.");
@@ -72,16 +68,16 @@ public class OllamaExtractor extends AbstractExtractor {
 
         modelConfigMap = keyList.stream().map(s -> {
             final String key = s.replace('/', '_');
-            final String model = fessConfig.getSystemProperty(OLLAMA_MODEL_PREFIX + key);
+            final String model = fessConfig.getSystemProperty(OllamaConstants.OLLAMA_EXTRACTOR_MODEL_PREFIX + key);
             if (StringUtil.isBlank(model)) {
                 return null;
             }
-            final String prompt = fessConfig.getSystemProperty(OLLAMA_PROMPT_PREFIX + key);
+            final String prompt = fessConfig.getSystemProperty(OllamaConstants.OLLAMA_EXTRACTOR_PROMPT_PREFIX + key);
             if (StringUtil.isBlank(prompt)) {
                 return null;
             }
             logger.info("Registered Ollama model for key: {}", key);
-            return Pair.pair(key, new OllamaConfig(model, prompt));
+            return Pair.pair(key, new OllamaConfig(model, prompt, StringUtil.EMPTY));
         }).filter(x -> x != null).collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
     }
 
@@ -100,8 +96,8 @@ public class OllamaExtractor extends AbstractExtractor {
             buf.append(",\"prompt\":\"").append(StringEscapeUtils.escapeJson(ollamaConfig.prompt())).append('"');
             buf.append(",\"images\":[\"").append(Base64.getEncoder().encodeToString(InputStreamUtil.getBytes(in))).append("\"]");
         } else {
-            final String prompt =
-                    ollamaConfig.prompt().replaceAll(TEXT_PLACEHOLDER, new String(InputStreamUtil.getBytes(in), Constants.CHARSET_UTF_8));
+            final String prompt = ollamaConfig.prompt().replaceAll(OllamaConstants.TEXT_PLACEHOLDER,
+                    new String(InputStreamUtil.getBytes(in), Constants.CHARSET_UTF_8));
             buf.append(",\"prompt\":\"").append(StringEscapeUtils.escapeJson(prompt)).append('"');
         }
         buf.append('}');
@@ -121,6 +117,12 @@ public class OllamaExtractor extends AbstractExtractor {
         }
     }
 
+    /**
+     * Returns the key for the model to use based on the MIME type of the content.
+     *
+     * @param params The parameters of the content.
+     * @return The key for the model.
+     */
     protected String getMimeTypeKey(final Map<String, String> params) {
         final String mimeType = params.get(ExtractData.CONTENT_TYPE);
         if (StringUtil.isNotBlank(mimeType)) {
