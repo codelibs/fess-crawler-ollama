@@ -61,22 +61,33 @@ public class OllamaIngester extends Ingester {
             }
             return;
         }
-        logger.info("Ollama endpoint configured: {}", endpoint);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Ollama endpoint configured: {}", endpoint);
+        }
 
         modelConfigMap = Arrays.stream(getMimeTypeKeysFromSystemProperties()).map(key -> {
             final String model = fessConfig.getSystemProperty(OllamaConstants.OLLAMA_INGESTER_MODEL_PREFIX + key);
+            if (logger.isDebugEnabled()) {
+                logger.debug(OllamaConstants.OLLAMA_INGESTER_MODEL_PREFIX + key + " = " + model);
+            }
             if (StringUtil.isBlank(model)) {
                 return null;
             }
             final String outputField = fessConfig.getSystemProperty(OllamaConstants.OLLAMA_INGESTER_FIELD_PREFIX + key);
+            if (logger.isDebugEnabled()) {
+                logger.debug(OllamaConstants.OLLAMA_INGESTER_FIELD_PREFIX + key + " = " + outputField);
+            }
             if (StringUtil.isBlank(outputField)) {
                 return null;
             }
             final String prompt = fessConfig.getSystemProperty(OllamaConstants.OLLAMA_INGESTER_PROMPT_PREFIX + key);
+            if (logger.isDebugEnabled()) {
+                logger.debug(OllamaConstants.OLLAMA_INGESTER_PROMPT_PREFIX + key + " = " + prompt);
+            }
             if (StringUtil.isBlank(prompt)) {
                 return null;
             }
-            logger.info("Registered Ollama model for key: {}", key);
+            logger.info("Registered OllamaIngester for key: {}", key);
             return Pair.pair(key, new OllamaConfig(model, prompt, outputField));
         }).filter(x -> x != null).collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
     }
@@ -121,6 +132,7 @@ public class OllamaIngester extends Ingester {
                 final StringBuilder buf = new StringBuilder();
                 buf.append("{\"model\":\"").append(StringEscapeUtils.escapeJson(ollamaConfig.model())).append('"');
                 buf.append(",\"stream\":false");
+                // TODO support a long content
                 final String prompt = replacePlaceholders(ollamaConfig.prompt(), target);
                 buf.append(",\"prompt\":\"").append(StringEscapeUtils.escapeJson(prompt)).append('"');
                 buf.append('}');

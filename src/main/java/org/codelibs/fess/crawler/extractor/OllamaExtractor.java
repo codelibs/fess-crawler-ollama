@@ -64,19 +64,27 @@ public class OllamaExtractor extends AbstractExtractor {
             }
             return;
         }
-        logger.info("Ollama endpoint configured: {}", endpoint);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Ollama endpoint configured: {}", endpoint);
+        }
 
         modelConfigMap = keyList.stream().map(s -> {
             final String key = s.replace('/', '_');
             final String model = fessConfig.getSystemProperty(OllamaConstants.OLLAMA_EXTRACTOR_MODEL_PREFIX + key);
+            if (logger.isDebugEnabled()) {
+                logger.debug(OllamaConstants.OLLAMA_EXTRACTOR_MODEL_PREFIX + key + " = " + model);
+            }
             if (StringUtil.isBlank(model)) {
                 return null;
             }
             final String prompt = fessConfig.getSystemProperty(OllamaConstants.OLLAMA_EXTRACTOR_PROMPT_PREFIX + key);
+            if (logger.isDebugEnabled()) {
+                logger.debug(OllamaConstants.OLLAMA_EXTRACTOR_PROMPT_PREFIX + key + " = " + prompt);
+            }
             if (StringUtil.isBlank(prompt)) {
                 return null;
             }
-            logger.info("Registered Ollama model for key: {}", key);
+            logger.info("Registered OllamaExtractor for key: {}", key);
             return Pair.pair(key, new OllamaConfig(model, prompt, StringUtil.EMPTY));
         }).filter(x -> x != null).collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
     }
@@ -157,6 +165,11 @@ public class OllamaExtractor extends AbstractExtractor {
         }
 
         throw new UnsupportedExtractException("MimeType key could not be resolved.");
+    }
+
+    @Override
+    public int getWeight() {
+        return 10;
     }
 
 }
