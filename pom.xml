@@ -37,6 +37,7 @@
 					<archive>
 						<manifestEntries>
 							<Fess-WebAppJar>true</Fess-WebAppJar>
+							<Automatic-Module-Name>org.codelibs.fess.crawler.ollama</Automatic-Module-Name>
 						</manifestEntries>
 					</archive>
 				</configuration>
@@ -47,16 +48,6 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-javadoc-plugin</artifactId>
-			</plugin>
-			<plugin>
-				<artifactId>maven-jar-plugin</artifactId>
-				<configuration>
-					<archive>
-						<manifestEntries>
-							<Automatic-Module-Name>org.codelibs.fess.crawler.ollama</Automatic-Module-Name>
-						</manifestEntries>
-					</archive>
-				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>com.mycila</groupId>

@@ -23,6 +23,9 @@ import java.util.logging.Logger;
 import org.codelibs.curl.Curl;
 import org.codelibs.curl.CurlResponse;
 import org.codelibs.fess.OllamaConstants;
+import org.codelibs.fess.crawler.entity.ResponseData;
+import org.codelibs.fess.crawler.entity.ResultData;
+import org.codelibs.fess.entity.DataStoreParams;
 import org.codelibs.fess.mylasta.direction.FessConfig;
 import org.codelibs.fess.util.ComponentUtil;
 import org.dbflute.utflute.core.PlainTestCase;
@@ -129,6 +132,270 @@ public class OllamaIngesterTest extends PlainTestCase {
         map.put("v2", "222");
         map.put("v3", "333");
         assertEquals("111 aaa 222 bbb ", ingester.replacePlaceholders("[[v1]] aaa [[v2]] bbb [[v4]]", map));
+    }
+
+    public void test_replacePlaceholders_multipleOccurrences() {
+        final OllamaIngester ingester = new OllamaIngester();
+
+        final Map<String, Object> map = new HashMap<>();
+        map.put("name", "John");
+        map.put("age", 30);
+
+        // Test multiple occurrences of the same placeholder
+        assertEquals("John is John and is 30 years old",
+                ingester.replacePlaceholders("[[name]] is [[name]] and is [[age]] years old", map));
+    }
+
+    public void test_replacePlaceholders_noPlaceholders() {
+        final OllamaIngester ingester = new OllamaIngester();
+
+        final Map<String, Object> map = new HashMap<>();
+        map.put("v1", "111");
+
+        // Test string with no placeholders
+        assertEquals("simple text", ingester.replacePlaceholders("simple text", map));
+    }
+
+    public void test_replacePlaceholders_emptyMap() {
+        final OllamaIngester ingester = new OllamaIngester();
+
+        final Map<String, Object> map = new HashMap<>();
+
+        // Test with empty map - all placeholders should be removed
+        assertEquals("hello  world ", ingester.replacePlaceholders("hello [[missing]] world [[another]]", map));
+    }
+
+    public void test_process_withDataStoreParams() throws Exception {
+        ComponentUtil.setFessConfig(new FessConfig.SimpleImpl() {
+
+            @Override
+            public String getSystemProperty(final String key) {
+                if (OllamaConstants.OLLAMA_ENDPOINT.equals(key)) {
+                    return ollama.getEndpoint();
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_MODEL_PREFIX + "text_plain")) {
+                    return modelName;
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_PROMPT_PREFIX + "text_plain")) {
+                    return "Summarize: [[content]]";
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_FIELD_PREFIX + "text_plain")) {
+                    return "summary";
+                }
+                return null;
+            }
+
+            @Override
+            public String getIndexFieldMimetype() {
+                return "mimetype";
+            }
+        });
+
+        final OllamaIngester ingester = new OllamaIngester() {
+            @Override
+            protected String[] getMimeTypeKeysFromSystemProperties() {
+                return new String[] { "text_plain" };
+            }
+
+            @Override
+            protected IngestFactory getIngestFactory() {
+                return new IngestFactory();
+            }
+        };
+        ingester.register();
+
+        final Map<String, Object> map = new HashMap<>();
+        map.put("mimetype", "text/plain");
+        map.put("content", "This is a test document");
+
+        final DataStoreParams params = new DataStoreParams();
+        final Map<String, Object> output = ingester.process(map, params);
+
+        assertNotNull(output);
+        assertTrue(output.containsKey("summary"));
+        assertNotNull(output.get("summary"));
+    }
+
+    public void test_process_withResultData() throws Exception {
+        ComponentUtil.setFessConfig(new FessConfig.SimpleImpl() {
+
+            @Override
+            public String getSystemProperty(final String key) {
+                if (OllamaConstants.OLLAMA_ENDPOINT.equals(key)) {
+                    return ollama.getEndpoint();
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_MODEL_PREFIX + "text_plain")) {
+                    return modelName;
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_PROMPT_PREFIX + "text_plain")) {
+                    return "Analyze: [[content]]";
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_FIELD_PREFIX + "text_plain")) {
+                    return "analysis";
+                }
+                return null;
+            }
+
+            @Override
+            public String getIndexFieldMimetype() {
+                return "mimetype";
+            }
+        });
+
+        final OllamaIngester ingester = new OllamaIngester() {
+            @Override
+            protected String[] getMimeTypeKeysFromSystemProperties() {
+                return new String[] { "text_plain" };
+            }
+
+            @Override
+            protected IngestFactory getIngestFactory() {
+                return new IngestFactory();
+            }
+        };
+        ingester.register();
+
+        final Map<String, Object> rawData = new HashMap<>();
+        rawData.put("mimetype", "text/plain");
+        rawData.put("content", "Test content");
+
+        final ResultData resultData = new ResultData();
+        resultData.setRawData(rawData);
+
+        final ResponseData responseData = new ResponseData();
+
+        final ResultData output = ingester.process(resultData, responseData);
+
+        assertNotNull(output);
+        assertTrue(output.getRawData() instanceof Map);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> outputMap = (Map<String, Object>) output.getRawData();
+        assertTrue(outputMap.containsKey("analysis"));
+    }
+
+    public void test_process_noMatchingMimeType() throws Exception {
+        ComponentUtil.setFessConfig(new FessConfig.SimpleImpl() {
+
+            @Override
+            public String getSystemProperty(final String key) {
+                if (OllamaConstants.OLLAMA_ENDPOINT.equals(key)) {
+                    return ollama.getEndpoint();
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_MODEL_PREFIX + "text_plain")) {
+                    return modelName;
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_PROMPT_PREFIX + "text_plain")) {
+                    return "Summarize: [[content]]";
+                }
+                if (key.equals(OllamaConstants.OLLAMA_INGESTER_FIELD_PREFIX + "text_plain")) {
+                    return "summary";
+                }
+                return null;
+            }
+
+            @Override
+            public String getIndexFieldMimetype() {
+                return "mimetype";
+            }
+        });
+
+        final OllamaIngester ingester = new OllamaIngester() {
+            @Override
+            protected String[] getMimeTypeKeysFromSystemProperties() {
+                return new String[] { "text_plain" };
+            }
+
+            @Override
+            protected IngestFactory getIngestFactory() {
+                return new IngestFactory();
+            }
+        };
+        ingester.register();
+
+        // Test with non-matching MIME type
+        final Map<String, Object> map = new HashMap<>();
+        map.put("mimetype", "application/pdf");
+        map.put("content", "PDF content");
+
+        final Map<String, Object> output = ingester.process(map);
+
+        assertNotNull(output);
+        assertFalse(output.containsKey("summary"));
+        assertEquals("PDF content", output.get("content"));
+    }
+
+    public void test_process_nullMimeType() throws Exception {
+        ComponentUtil.setFessConfig(new FessConfig.SimpleImpl() {
+
+            @Override
+            public String getSystemProperty(final String key) {
+                if (OllamaConstants.OLLAMA_ENDPOINT.equals(key)) {
+                    return ollama.getEndpoint();
+                }
+                return null;
+            }
+
+            @Override
+            public String getIndexFieldMimetype() {
+                return "mimetype";
+            }
+        });
+
+        final OllamaIngester ingester = new OllamaIngester() {
+            @Override
+            protected String[] getMimeTypeKeysFromSystemProperties() {
+                return new String[] {};
+            }
+
+            @Override
+            protected IngestFactory getIngestFactory() {
+                return new IngestFactory();
+            }
+        };
+        ingester.register();
+
+        // Test with null MIME type
+        final Map<String, Object> map = new HashMap<>();
+        map.put("content", "Test content");
+
+        final Map<String, Object> output = ingester.process(map);
+
+        assertNotNull(output);
+        assertEquals("Test content", output.get("content"));
+    }
+
+    public void test_register_noEndpoint() throws Exception {
+        ComponentUtil.setFessConfig(new FessConfig.SimpleImpl() {
+
+            @Override
+            public String getSystemProperty(final String key) {
+                // No endpoint configured
+                return null;
+            }
+
+            @Override
+            public String getIndexFieldMimetype() {
+                return "mimetype";
+            }
+        });
+
+        final OllamaIngester ingester = new OllamaIngester() {
+            @Override
+            protected String[] getMimeTypeKeysFromSystemProperties() {
+                return new String[] { "text_plain" };
+            }
+
+            @Override
+            protected IngestFactory getIngestFactory() {
+                return new IngestFactory();
+            }
+        };
+
+        // Should not throw exception when no endpoint is configured
+        ingester.register();
+
+        // Model config map should be empty
+        assertEquals(0, ingester.modelConfigMap.size());
     }
 
 }
