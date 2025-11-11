@@ -30,7 +30,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: .ollama
-        key: ${{ runner.os }}-ollama-${{ hashFiles('.ollama/**') }}
+        key: ${{ runner.os }}-ollama-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-ollama-
     - name: Build with Maven
